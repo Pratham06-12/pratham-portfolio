@@ -1,0 +1,72 @@
+---
+title: "Vendor Invoice Intelligence: Freight Cost & Risk Detection"
+description: "Developed an end-to-end ML pipeline to forecast logistics costs and automate invoice auditing, reducing manual review time by 80%."
+tools: ["Python", "SQL", "Scikit-Learn", "Streamlit", "DuckDB"]
+date: "2024-03-11"
+featured: true
+---
+
+## Problem Statement
+
+In large-scale enterprise operations, managing vendor invoices for logistics is a major friction point. Companies face two critical challenges:
+1. **Unpredictable Freight Costs**: Shipping fees vary wildly based on vendor, season, and item quantity, making budget forecasting difficult.
+2. **Audit Inefficiency**: Manually auditing thousands of invoices for "risky" behavior (anomalous charges, over-billing) is labor-intensive and error-prone.
+
+The objective was to build an intelligent system that predicts freight costs accurately and flags high-risk invoices for manual review.
+
+## Analysis Approach
+
+### 1. SQL-First Feature Engineering
+Utilized **DuckDB** to execute complex SQL transformations directly on raw CSV datasets. This involved using Common Table Expressions (CTEs) and Window Functions to derive:
+- **Vendor Historical Benchmarks**: Average spend and spending volatility per vendor.
+- **Transactional Context**: Item-level quantity and price discrepancies compared to historical averages.
+
+### 2. Exploratory Data Analysis (EDA)
+Performed statistical analysis to identify:
+- Strong correlation (0.91) between total invoice amount and freight cost.
+- Significant "Risk Peaks" during certain months for specific vendors.
+- Outlier patterns where freight cost exceeded 15% of the total invoice value.
+
+### 3. Machine Learning Development
+Implemented a dual-target model architecture:
+- **Regression (Random Forest)**: Predicted `freight_cost` based on invoice attributes and vendor metrics.
+- **Classification (Random Forest)**: Classified invoices as "Risky" or "Normal" based on spend anomalies and derived features.
+
+## Tools Used
+
+- **Python (Scikit-Learn, Pandas, SHAP)**: Core pipeline, model training, and Explainable AI (XAI).
+- **SQL (DuckDB)**: For high-performance feature aggregation and merging.
+- **Pandera**: For schema-based data validation ensuring production-grade data quality.
+- **Streamlit**: For the interactive user interface and real-time inference.
+
+## Key Insights
+
+- **XAI Results**: Using SHAP values, we discovered that **Vendor History** and **Item Quantity** were the strongest predictors of freight cost, while **Monthly Seasonality** was the primary driver for risk flags.
+- **Anomaly Detection**: The system successfully identified that 12% of "risky" invoices were due to inconsistent unit pricing from a specific subset of vendors.
+
+## Evaluation Metrics
+
+| Logic | Metric | Result |
+| :--- | :--- | :--- |
+| **Regression** | R² Score | **0.94** |
+| **Regression** | MAE | **$20.45** |
+| **Classification** | Precision | **0.92** |
+| **Classification** | F1-Score | **0.90** |
+
+## Streamlit Deployment
+
+The project is deployed as a **Streamlit Web App** that allows logistics managers to:
+- Input invoice details (Vendor, Total Amount, Quantity).
+- Get an instant **Freight Cost Prediction**.
+- Receive a **Risk Assessment Flag (Normal/Risky)** with a probability score.
+- Visualize the **Model Drivers** (Explainable AI) to understand the "Why" behind each flag.
+
+## Future Improvements
+
+- **Real-time API Integration**: Connecting directly to ERP systems via REST APIs.
+- **Time-Series Forecasting**: Adding ARIMA/Prophet models to predict future logistics spend trends.
+- **Vendor Rating System**: Automatically grading vendors based on their historical accuracy and risk frequency.
+
+---
+
+**Want to discuss this project or ML in supply chain?** Connect with me on [LinkedIn](https://www.linkedin.com/in/prathamnagekar06/) or check out the [GitHub Repo](https://github.com/Pratham06-12/Vendor-Invoice-Intelligence).

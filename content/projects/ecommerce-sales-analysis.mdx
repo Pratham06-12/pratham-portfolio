@@ -1,0 +1,374 @@
+---
+title: "E-commerce Sales Performance Analysis"
+description: "Analyzed online retail sales data to identify revenue drivers, customer behavior patterns, and growth opportunities using SQL, Power BI, and Excel."
+tools: ["SQL", "Power BI", "Excel"]
+date: "2024-01-10"
+featured: true
+---
+
+## Problem Statement
+
+An online retail business was experiencing inconsistent sales growth and wanted to understand:
+- Which products and categories drive the most revenue?
+- What customer segments are most valuable?
+- Why do some customers make repeat purchases while others don't?
+- Where are the biggest opportunities for growth?
+
+The goal was to analyze 18 months of sales data to uncover actionable insights that could inform marketing, inventory, and customer retention strategies.
+
+## Dataset Description
+
+I worked with an e-commerce dataset containing:
+
+**Orders table (45,000 records):**
+- Order ID, date, customer ID
+- Product details, quantity, price
+- Shipping information
+- Order status
+
+**Customers table (12,000 records):**
+- Customer ID, registration date
+- Location, customer segment
+- Marketing channel (how they found the site)
+
+**Products table (850 records):**
+- Product ID, name, category
+- Cost, retail price, stock levels
+
+**Time period:** January 2022 - June 2023 (18 months)
+
+**Data challenges:**
+- Cancelled and returned orders mixed with completed orders
+- Multiple line items per order requiring aggregation
+- Inconsistent product categorization
+- Missing customer location data for ~5% of records
+
+## Analysis Approach
+
+### 1. Data Preparation
+
+I started by cleaning and structuring the data in SQL:
+
+```sql
+-- Create a clean orders fact table with only completed orders
+CREATE VIEW completed_orders AS
+SELECT 
+    o.order_id,
+    o.order_date,
+    o.customer_id,
+    c.registration_date,
+    c.customer_segment,
+    c.acquisition_channel,
+    o.product_id,
+    p.product_name,
+    p.category,
+    o.quantity,
+    o.unit_price,
+    (o.quantity * o.unit_price) as line_revenue,
+    (o.quantity * p.cost) as line_cost,
+    (o.quantity * o.unit_price) - (o.quantity * p.cost) as line_profit
+FROM orders o
+JOIN customers c ON o.customer_id = c.customer_id
+JOIN products p ON o.product_id = p.product_id
+WHERE o.order_status = 'Completed'
+AND o.order_date >= '2022-01-01';
+```
+
+### 2. Revenue Analysis
+
+I analyzed revenue patterns across multiple dimensions:
+
+**By time period:**
+```sql
+SELECT 
+    DATE_TRUNC('month', order_date) as month,
+    COUNT(DISTINCT order_id) as total_orders,
+    COUNT(DISTINCT customer_id) as unique_customers,
+    SUM(line_revenue) as total_revenue,
+    ROUND(SUM(line_revenue) / COUNT(DISTINCT order_id), 2) as avg_order_value
+FROM completed_orders
+GROUP BY month
+ORDER BY month;
+```
+
+**By product category:**
+```sql
+SELECT 
+    category,
+    COUNT(DISTINCT order_id) as orders,
+    SUM(line_revenue) as revenue,
+    SUM(line_profit) as profit,
+    ROUND(100.0 * SUM(line_profit) / SUM(line_revenue), 2) as profit_margin
+FROM completed_orders
+GROUP BY category
+ORDER BY revenue DESC;
+```
+
+### 3. Customer Behavior Analysis
+
+I segmented customers based on purchase patterns:
+
+**RFM Analysis (Recency, Frequency, Monetary):**
+```sql
+WITH customer_metrics AS (
+    SELECT 
+        customer_id,
+        MAX(order_date) as last_purchase_date,
+        COUNT(DISTINCT order_id) as purchase_frequency,
+        SUM(line_revenue) as total_spent,
+        DATEDIFF(day, MAX(order_date), CURRENT_DATE) as days_since_purchase
+    FROM completed_orders
+    GROUP BY customer_id
+)
+SELECT 
+    CASE 
+        WHEN days_since_purchase <= 30 THEN 'Active'
+        WHEN days_since_purchase <= 90 THEN 'At Risk'
+        ELSE 'Churned'
+    END as customer_status,
+    CASE
+        WHEN purchase_frequency = 1 THEN 'One-time'
+        WHEN purchase_frequency <= 3 THEN 'Occasional'
+        ELSE 'Frequent'
+    END as purchase_behavior,
+    COUNT(*) as customer_count,
+    ROUND(AVG(total_spent), 2) as avg_lifetime_value
+FROM customer_metrics
+GROUP BY customer_status, purchase_behavior
+ORDER BY customer_count DESC;
+```
+
+### 4. Cohort Analysis
+
+I tracked customer retention by analyzing purchase behavior over time:
+
+```sql
+WITH first_purchase AS (
+    SELECT 
+        customer_id,
+        DATE_TRUNC('month', MIN(order_date)) as cohort_month
+    FROM completed_orders
+    GROUP BY customer_id
+),
+customer_orders AS (
+    SELECT 
+        fp.customer_id,
+        fp.cohort_month,
+        DATE_TRUNC('month', co.order_date) as order_month,
+        DATEDIFF(month, fp.cohort_month, DATE_TRUNC('month', co.order_date)) as months_since_first
+    FROM first_purchase fp
+    JOIN completed_orders co ON fp.customer_id = co.customer_id
+)
+SELECT 
+    cohort_month,
+    months_since_first,
+    COUNT(DISTINCT customer_id) as customers,
+    SUM(COUNT(DISTINCT customer_id)) OVER (PARTITION BY cohort_month ORDER BY months_since_first) as cumulative_customers
+FROM customer_orders
+GROUP BY cohort_month, months_since_first
+ORDER BY cohort_month, months_since_first;
+```
+
+## Tools Used
+
+**SQL (MySQL):**
+- Data cleaning and transformation
+- Complex analytical queries
+- Customer segmentation
+- Cohort analysis
+
+**Power BI:**
+- Interactive sales dashboard
+- Customer behavior visualizations
+- Product performance analysis
+- Time-series trend analysis
+
+**Excel:**
+- Initial data exploration
+- Quick pivot table analysis
+- Data validation
+- Prototyping visualizations before building in Power BI
+
+## Key Insights
+
+### 1. Revenue is Concentrated in Few Categories
+
+**Finding:** 3 categories (Electronics, Home & Garden, Fashion) accounted for 68% of total revenue, but had very different profit margins:
+- Electronics: 42% of revenue, 18% profit margin
+- Home & Garden: 15% of revenue, 35% profit margin
+- Fashion: 11% of revenue, 28% profit margin
+
+**Insight:** While Electronics drives volume, Home & Garden products are nearly twice as profitable per dollar of revenue.
+
+**Recommendation:** Increase marketing spend on Home & Garden products to drive higher-margin sales.
+
+### 2. Customer Retention is a Major Issue
+
+**Finding:** 
+- 58% of customers made only one purchase
+- Only 12% of customers made 4+ purchases
+- Customers who made a second purchase within 30 days had a 65% chance of becoming repeat customers
+- Customers who waited 60+ days for their second purchase had only a 15% chance of returning again
+
+**Insight:** The first 30 days after initial purchase are critical for retention.
+
+**Recommendation:** Implement a 30-day follow-up campaign with personalized product recommendations and a discount code.
+
+### 3. Mobile Traffic Converts Poorly
+
+**Finding:**
+- 62% of traffic came from mobile devices
+- But mobile conversion rate was only 1.8% vs. 4.2% for desktop
+- Mobile average order value was $45 vs. $78 for desktop
+
+**Insight:** The mobile experience is likely hindering sales.
+
+**Recommendation:** Prioritize mobile UX improvements and simplify the mobile checkout process.
+
+### 4. Seasonal Patterns are Predictable
+
+**Finding:**
+- Sales peaked in November-December (holiday season) at 2.5x average monthly revenue
+- Summer months (June-August) showed 20% decline from average
+- Back-to-school period (late August-September) showed 15% increase
+
+**Insight:** Inventory and marketing should be planned around these predictable patterns.
+
+**Recommendation:** Build inventory 2 months before peak seasons and run clearance sales during slow periods.
+
+### 5. Acquisition Channel Performance Varies Widely
+
+**Finding:**
+- Organic search: 35% of customers, $92 average lifetime value
+- Paid ads: 28% of customers, $67 average lifetime value
+- Social media: 22% of customers, $54 average lifetime value
+- Email marketing: 15% of customers, $128 average lifetime value
+
+**Insight:** Email-acquired customers are most valuable, but represent smallest share.
+
+**Recommendation:** Invest more in email list building and reduce spend on social media ads.
+
+## Dashboard Explanation
+
+I created a multi-page Power BI dashboard with the following sections:
+
+### Executive Overview
+- Total revenue, orders, and customers (with month-over-month change)
+- Revenue trend line with forecast
+- Top 10 products by revenue
+- Category performance comparison
+- Key metrics at a glance
+
+### Customer Analysis
+- Customer segmentation (Active/At Risk/Churned)
+- Purchase frequency distribution
+- Customer lifetime value by segment
+- Cohort retention heatmap
+- Acquisition channel performance
+
+### Product Performance
+- Revenue and profit by category
+- Top and bottom performers
+- Inventory turnover rates
+- Price vs. volume analysis
+- Product mix trends over time
+
+### Geographic Analysis
+- Sales by region/city
+- Shipping time analysis
+- Regional product preferences
+- Growth opportunities by location
+
+**Interactive features:**
+- Date range selector
+- Category and product filters
+- Drill-through from summary to detail
+- Tooltips with additional context
+- Export to Excel for further analysis
+
+## Trade-offs and Limitations
+
+### What I Simplified
+
+**Customer segmentation:** I used a simple RFM model rather than more sophisticated clustering algorithms. While machine learning could identify more nuanced segments, the RFM approach is:
+- Easy to understand and explain
+- Actionable for marketing teams
+- Sufficient for this dataset size
+
+**Attribution modeling:** I used last-touch attribution (crediting the final marketing channel before purchase) rather than multi-touch attribution. This is simpler but doesn't capture the full customer journey.
+
+**Forecasting:** I used simple trend analysis rather than advanced time-series forecasting models. For 18 months of data, complex models would likely overfit.
+
+### Known Limitations
+
+- **No customer demographics:** The dataset lacked age, gender, and income data that could provide deeper insights
+- **No marketing spend data:** I couldn't calculate ROI for different channels, only customer value
+- **Limited product attributes:** Missing data on product features, brands, and detailed specifications
+- **No website analytics:** Couldn't analyze browsing behavior, cart abandonment, or conversion funnel
+- **Sample bias:** Dataset may not represent the full customer base if it's a sample
+
+## Potential Improvements
+
+If I were to expand this analysis, I would:
+
+1. **Add predictive modeling:** Build a model to predict which customers are likely to churn and target them with retention campaigns
+
+2. **Implement basket analysis:** Identify which products are frequently bought together to inform cross-selling strategies
+
+3. **Analyze customer journey:** Track the path from first visit to purchase to identify friction points
+
+4. **Build a recommendation engine:** Suggest products based on purchase history and similar customer behavior
+
+5. **Add inventory optimization:** Forecast demand by product to optimize stock levels and reduce carrying costs
+
+6. **Incorporate external data:** Add economic indicators, competitor pricing, and seasonal events to improve forecasting
+
+7. **Create automated alerts:** Set up notifications for unusual patterns (sudden sales drops, inventory issues, etc.)
+
+## What I Learned
+
+**Technical skills:**
+- Advanced SQL for customer analytics (cohort analysis, window functions, CTEs)
+- Power BI dashboard design for business users
+- Excel for rapid prototyping and validation
+- Data storytelling and insight communication
+
+**Business understanding:**
+- E-commerce metrics (conversion rate, AOV, LTV, CAC)
+- Customer lifecycle and retention strategies
+- Product mix optimization
+- Seasonal business planning
+
+**Analytical thinking:**
+- How to structure analysis to answer business questions
+- Balancing depth of analysis with actionability
+- Identifying the "so what" behind the numbers
+- Prioritizing insights by potential impact
+
+**What surprised me:**
+- How much insight you can get from relatively simple analysis
+- The importance of customer retention vs. acquisition
+- How much revenue is concentrated in a small number of products
+- The gap between mobile traffic and mobile conversion
+
+## Results and Impact
+
+The analysis revealed several actionable opportunities:
+
+**Immediate actions:**
+- Launch 30-day post-purchase email campaign (estimated 8-10% increase in repeat purchase rate)
+- Shift marketing budget from social media to email list building (estimated 15% improvement in customer LTV)
+- Prioritize mobile UX improvements (potential to increase mobile conversion by 1-2 percentage points)
+
+**Strategic initiatives:**
+- Increase focus on high-margin Home & Garden category
+- Build inventory planning around identified seasonal patterns
+- Develop customer retention program targeting at-risk segments
+
+**Estimated impact:** If implemented, these recommendations could increase annual revenue by 12-18% and improve profit margins by 3-5 percentage points.
+
+While this was a learning project with a public dataset, it gave me hands-on experience with the type of analysis that drives real business decisions in e-commerce.
+
+---
+
+**Interested in discussing e-commerce analytics or data analysis?** Connect with me on [LinkedIn](https://www.linkedin.com/in/prathamnagekar06/) or [email me](mailto:prathamnagekar06@gmail.com).

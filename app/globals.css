@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Syntax highlighting for code blocks */
+@import 'highlight.js/styles/github.css';
+
+:root {
+  /* Base palette aligned with the data-analyst portfolio design system */
+  --color-bg-primary: #0B1220;
+  --color-bg-secondary: #121A2B;
+  --color-bg-card: #182235;
+  --color-accent: #3B82F6;
+  --color-accent-secondary: #60A5FA;
+  --color-success: #22C55E;
+  --color-text-primary: #E5E7EB;
+  --color-text-secondary: #9CA3AF;
+  --color-border: #263146;
+  --color-hover: #2563EB;
+}
+
+.dark {
+  /* Dark mode uses the same palette for now to keep a strong dark aesthetic */
+  --color-bg-primary: #0B1220;
+  --color-bg-secondary: #121A2B;
+  --color-bg-card: #182235;
+  --color-accent: #3B82F6;
+  --color-accent-secondary: #60A5FA;
+  --color-success: #22C55E;
+  --color-text-primary: #E5E7EB;
+  --color-text-secondary: #9CA3AF;
+  --color-border: #263146;
+  --color-hover: #2563EB;
+}
+
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  /* Respect user's motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  
+  * {
+    border-color: var(--color-border);
+  }
+
+  /* Enhanced focus indicators for accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 dark:ring-primary-400 dark:ring-offset-slate-900;
+  }
+
+  /* Ensure buttons and links have visible focus */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 dark:ring-primary-400;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Syntax highlighting adjustments for dark mode */
+.dark .hljs {
+  background: rgb(30 41 59) !important;
+  color: rgb(248 250 252) !important;
+}
+
+@layer components {
+  /* Typography scale */
+  .heading-hero {
+    @apply text-4xl sm:text-5xl font-semibold leading-tight text-text-primary;
+  }
+
+  .heading-section {
+    @apply text-3xl font-semibold leading-snug text-text-primary;
+  }
+
+  .heading-subsection {
+    @apply text-xl font-semibold leading-snug text-text-primary;
+  }
+
+  .heading-card {
+    @apply text-lg font-semibold leading-snug text-text-primary;
+  }
+
+  .body-base {
+    @apply text-base leading-relaxed text-text-secondary;
+  }
+
+  .body-caption {
+    @apply text-sm leading-normal text-text-secondary;
+  }
+
+  /* Card surface helper */
+  .card-surface {
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    @apply rounded-xl p-6;
+  }
+
+  /* Section spacing helper (80px on large screens) */
+  .section-spacing {
+    @apply py-16 md:py-20;
+  }
+}
+

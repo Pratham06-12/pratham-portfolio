@@ -1,0 +1,156 @@
+---
+title: "5 SQL Query Optimization Techniques I Wish I Knew Earlier"
+date: "2024-01-15"
+excerpt: "Practical SQL optimization tips that helped me reduce query execution time from minutes to seconds in real data analysis projects."
+tags: ["SQL", "Data Analysis"]
+published: true
+---
+
+When I started working with SQL for data analysis, I wrote queries that worked—but they were slow. Really slow. I'm talking about queries that took 3-4 minutes to run when they should have taken seconds. Through trial, error, and a lot of reading execution plans, I learned some optimization techniques that made a huge difference.
+
+Here are five SQL optimization tips that transformed how I write queries, with real examples from my projects.
+
+## 1. Use WHERE Instead of HAVING When Possible
+
+This was my biggest mistake early on. I'd filter data using HAVING clauses because it felt natural—filter after grouping, right? But HAVING filters *after* aggregation, which means SQL processes way more rows than necessary.
+
+**Bad approach:**
+```sql
+SELECT customer_id, COUNT(*) as order_count
+FROM orders
+GROUP BY customer_id
+HAVING order_date >= '2023-01-01';
+```
+
+**Better approach:**
+```sql
+SELECT customer_id, COUNT(*) as order_count
+FROM orders
+WHERE order_date >= '2023-01-01'
+GROUP BY customer_id;
+```
+
+The WHERE clause filters rows *before* grouping, reducing the dataset SQL has to aggregate. In my e-commerce analysis project, this single change cut query time from 45 seconds to 8 seconds on a table with 2 million rows.
+
+## 2. Avoid SELECT * in Production Queries
+
+I know, I know—everyone says this. But I didn't really understand *why* until I saw the performance difference firsthand.
+
+When you use SELECT *, SQL retrieves every column from the table, even if you only need two or three. This means:
+- More data transferred from disk to memory
+- Larger result sets sent over the network
+- More memory consumed by your application
+
+**Instead of this:**
+```sql
+SELECT * FROM customers
+WHERE city = 'Bengaluru';
+```
+
+**Do this:**
+```sql
+SELECT customer_id, name, email
+FROM customers
+WHERE city = 'Bengaluru';
+```
+
+In my credit risk analysis project, I was pulling customer data for a dashboard. Switching from SELECT * to selecting only the 6 columns I actually needed reduced query execution time by 40% and made my Power BI refresh much faster.
+
+## 3. Use Indexes Strategically (But Don't Over-Index)
+
+Indexes are like a book's table of contents—they help SQL find data quickly without scanning every row. But here's what I learned: more indexes isn't always better.
+
+**When to create an index:**
+- Columns frequently used in WHERE clauses
+- Columns used in JOIN conditions
+- Columns used in ORDER BY
+
+**When NOT to create an index:**
+- Tables with frequent INSERT/UPDATE operations (indexes slow these down)
+- Columns with low cardinality (like boolean fields)
+- Small tables (the overhead isn't worth it)
+
+In my systems performance analysis project, I created an index on the `timestamp` column since I was constantly filtering by date ranges:
+
+```sql
+CREATE INDEX idx_timestamp ON system_logs(timestamp);
+```
+
+This reduced my time-series queries from 2 minutes to under 10 seconds. But when I tried indexing everything, INSERT operations slowed down significantly. Balance is key.
+
+## 4. Use EXISTS Instead of IN for Subqueries
+
+This one surprised me. When checking if values exist in another table, EXISTS is usually faster than IN, especially with large datasets.
+
+**Less efficient:**
+```sql
+SELECT customer_id, name
+FROM customers
+WHERE customer_id IN (
+    SELECT customer_id 
+    FROM orders 
+    WHERE order_date >= '2023-01-01'
+);
+```
+
+**More efficient:**
+```sql
+SELECT customer_id, name
+FROM customers c
+WHERE EXISTS (
+    SELECT 1 
+    FROM orders o
+    WHERE o.customer_id = c.customer_id 
+    AND o.order_date >= '2023-01-01'
+);
+```
+
+Why? EXISTS stops searching as soon as it finds a match, while IN has to retrieve all values from the subquery first. In my analysis of active customers, this change improved performance by about 30%.
+
+## 5. Be Careful with Wildcard Searches
+
+Using LIKE with a leading wildcard (LIKE '%search%') forces SQL to scan the entire table because it can't use indexes effectively.
+
+**Slow:**
+```sql
+SELECT product_name, price
+FROM products
+WHERE product_name LIKE '%phone%';
+```
+
+**Faster (if possible):**
+```sql
+SELECT product_name, price
+FROM products
+WHERE product_name LIKE 'phone%';
+```
+
+If you must use leading wildcards, consider full-text search features or creating a separate search-optimized table. In my e-commerce project, I couldn't avoid the leading wildcard for product search, so I created a materialized view with pre-computed search terms, which helped significantly.
+
+## Bonus Tip: Learn to Read Execution Plans
+
+The single most valuable skill I developed was learning to read SQL execution plans. Every database system (MySQL, PostgreSQL, SQL Server) has tools to show you exactly how your query executes:
+
+- Table scans vs. index seeks
+- Join methods used
+- Estimated vs. actual row counts
+- Where the bottlenecks are
+
+In SQL Server, just add `SET STATISTICS IO ON` and `SET STATISTICS TIME ON` before your query. In MySQL, use `EXPLAIN ANALYZE`. These tools show you exactly where your query is slow.
+
+## What I'm Still Learning
+
+I'm not an expert—I'm still learning SQL optimization every day. Some areas I'm exploring:
+
+- Query hints and optimizer directives
+- Partitioning strategies for very large tables
+- Advanced indexing techniques (covering indexes, filtered indexes)
+- Query plan caching and recompilation
+
+But these five techniques have made the biggest practical difference in my day-to-day work. They've helped me deliver faster dashboards, more responsive reports, and better analysis.
+
+## Your Turn
+
+What SQL optimization techniques have you found most useful? I'd love to hear what's worked for you. Feel free to reach out on [LinkedIn](https://www.linkedin.com/in/prathamnagekar06/) or [email me](mailto:prathamnagekar06@gmail.com).
+
+Happy querying!

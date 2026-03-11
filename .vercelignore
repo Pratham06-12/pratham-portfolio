@@ -1,0 +1,31 @@
+# Test files
+**/__tests__
+**/*.test.ts
+**/*.test.tsx
+*.test.ts
+*.test.tsx
+vitest.config.ts
+vitest.setup.ts
+
+# Example files
+**/*.example.tsx
+
+# Documentation
+DEPLOYMENT.md
+ACCESSIBILITY.md
+RESPONSIVE_DESIGN_VERIFICATION.md
+THEME_SYSTEM.md
+lib/README-*.md
+
+# Development files
+.vscode
+.kiro
+
+# Build artifacts
+.next
+node_modules
+tsconfig.tsbuildinfo
+
+# Environment files
+.env.local
+.env*.local

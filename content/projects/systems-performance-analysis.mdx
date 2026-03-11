@@ -1,0 +1,374 @@
+---
+title: "Systems Performance Monitoring & Analysis"
+description: "Analyzed system performance logs to identify bottlenecks and optimize resource utilization during my internship at Pantech Prolabs, using Python and SQL."
+tools: ["Python", "SQL"]
+date: "2023-08-15"
+featured: true
+---
+
+## Problem Statement
+
+During my Systems Engineering internship at Pantech Prolabs, the team was experiencing intermittent performance issues with their testing infrastructure. Systems would occasionally slow down or become unresponsive, but the root cause wasn't clear.
+
+The challenge was to:
+- Analyze system performance logs to identify patterns
+- Pinpoint specific bottlenecks (CPU, memory, disk I/O, network)
+- Determine if issues were related to specific workloads or time periods
+- Provide actionable recommendations for optimization
+
+This was my first real-world data analysis project, and it taught me a lot about working with messy, real-time data.
+
+## Dataset Description
+
+I worked with system performance logs collected over 6 weeks from multiple test servers:
+
+**Log data included:**
+- Timestamp (collected every 30 seconds)
+- CPU utilization (%)
+- Memory usage (MB and %)
+- Disk I/O (read/write operations per second)
+- Network throughput (MB/s)
+- Active processes and their resource consumption
+- System events and errors
+
+**Data volume:**
+- ~500,000 log entries per server
+- 8 servers monitored
+- Total dataset: ~4 million records
+
+**Data challenges:**
+- Logs in multiple formats (some servers used different monitoring tools)
+- Missing data during system restarts
+- Timestamp inconsistencies across servers
+- Outliers from measurement errors
+- No clear labeling of "normal" vs. "problem" periods
+
+## Analysis Approach
+
+### 1. Data Collection and Cleaning
+
+First, I had to consolidate logs from different sources. I wrote Python scripts to:
+
+```python
+import pandas as pd
+import glob
+from datetime import datetime
+
+# Read and standardize logs from different formats
+def parse_server_logs(file_path, server_id):
+    df = pd.read_csv(file_path)
+    
+    # Standardize column names
+    df = df.rename(columns={
+        'cpu_pct': 'cpu_usage',
+        'mem_mb': 'memory_mb',
+        'disk_read': 'disk_read_ops',
+        'disk_write': 'disk_write_ops'
+    })
+    
+    # Convert timestamp to standard format
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    
+    # Add server identifier
+    df['server_id'] = server_id
+    
+    # Remove obvious outliers (e.g., CPU > 100%)
+    df = df[(df['cpu_usage'] >= 0) & (df['cpu_usage'] <= 100)]
+    
+    return df
+
+# Combine all server logs
+all_logs = []
+for file in glob.glob('logs/server_*.csv'):
+    server_id = file.split('_')[1].split('.')[0]
+    logs = parse_server_logs(file, server_id)
+    all_logs.append(logs)
+
+combined_df = pd.concat(all_logs, ignore_index=True)
+```
+
+Then I loaded the cleaned data into a SQL database for analysis:
+
+```sql
+CREATE TABLE system_metrics (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP NOT NULL,
+    server_id VARCHAR(10) NOT NULL,
+    cpu_usage DECIMAL(5,2),
+    memory_mb INTEGER,
+    memory_pct DECIMAL(5,2),
+    disk_read_ops INTEGER,
+    disk_write_ops INTEGER,
+    network_throughput DECIMAL(10,2)
+);
+
+CREATE INDEX idx_timestamp ON system_metrics(timestamp);
+CREATE INDEX idx_server ON system_metrics(server_id);
+```
+
+### 2. Baseline Performance Analysis
+
+I established what "normal" performance looked like:
+
+```sql
+-- Calculate baseline metrics for each server
+SELECT 
+    server_id,
+    ROUND(AVG(cpu_usage), 2) as avg_cpu,
+    ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY cpu_usage), 2) as p95_cpu,
+    ROUND(AVG(memory_pct), 2) as avg_memory,
+    ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY memory_pct), 2) as p95_memory,
+    ROUND(AVG(disk_read_ops + disk_write_ops), 0) as avg_disk_ops
+FROM system_metrics
+WHERE timestamp BETWEEN '2023-07-01' AND '2023-07-07'  -- First week as baseline
+GROUP BY server_id;
+```
+
+This gave me a reference point to identify anomalies.
+
+### 3. Anomaly Detection
+
+I identified periods of poor performance using statistical thresholds:
+
+```sql
+-- Find periods where CPU usage exceeded 2 standard deviations above mean
+WITH cpu_stats AS (
+    SELECT 
+        server_id,
+        AVG(cpu_usage) as mean_cpu,
+        STDDEV(cpu_usage) as stddev_cpu
+    FROM system_metrics
+    GROUP BY server_id
+)
+SELECT 
+    sm.timestamp,
+    sm.server_id,
+    sm.cpu_usage,
+    cs.mean_cpu,
+    (sm.cpu_usage - cs.mean_cpu) / cs.stddev_cpu as z_score
+FROM system_metrics sm
+JOIN cpu_stats cs ON sm.server_id = cs.server_id
+WHERE sm.cpu_usage > (cs.mean_cpu + 2 * cs.stddev_cpu)
+ORDER BY sm.timestamp;
+```
+
+### 4. Pattern Analysis
+
+I looked for patterns in when and why performance degraded:
+
+**Time-based patterns:**
+```python
+# Analyze performance by hour of day
+hourly_performance = combined_df.groupby(combined_df['timestamp'].dt.hour).agg({
+    'cpu_usage': ['mean', 'max'],
+    'memory_pct': ['mean', 'max'],
+    'disk_read_ops': 'sum'
+}).round(2)
+
+print(hourly_performance)
+```
+
+**Correlation analysis:**
+```python
+# Check correlation between different metrics
+correlation_matrix = combined_df[['cpu_usage', 'memory_pct', 'disk_read_ops', 
+                                   'disk_write_ops', 'network_throughput']].corr()
+
+print(correlation_matrix)
+```
+
+### 5. Root Cause Investigation
+
+For identified problem periods, I drilled down to find specific causes:
+
+```sql
+-- Identify what was running during high CPU periods
+SELECT 
+    timestamp,
+    server_id,
+    cpu_usage,
+    active_processes,
+    system_events
+FROM system_metrics
+WHERE cpu_usage > 85
+AND timestamp BETWEEN '2023-07-15 14:00:00' AND '2023-07-15 16:00:00'
+ORDER BY timestamp;
+```
+
+## Tools Used
+
+**Python:**
+- pandas for data manipulation and cleaning
+- matplotlib and seaborn for visualization
+- Scripts for log parsing and data standardization
+- Statistical analysis (mean, median, standard deviation, percentiles)
+
+**SQL (PostgreSQL):**
+- Data storage and indexing
+- Complex analytical queries
+- Time-series analysis
+- Aggregations and window functions
+
+## Key Insights
+
+### 1. Memory Leaks in Test Scripts
+
+**Finding:** Memory usage on 3 servers showed a steady upward trend over time, eventually hitting 95%+ and causing system slowdowns. Memory would only reset after system restarts.
+
+**Root cause:** Test automation scripts were not properly releasing memory after completing test runs. Over days of continuous operation, this accumulated into a significant problem.
+
+**Impact:** Systems became unresponsive every 4-5 days, requiring manual restarts.
+
+**Recommendation:** I identified the specific scripts causing the issue and recommended adding explicit memory cleanup. The team modified the scripts to properly close connections and clear variables.
+
+### 2. Disk I/O Bottleneck During Peak Hours
+
+**Finding:** Between 2 PM and 4 PM daily, disk I/O operations spiked to 10x normal levels, causing overall system slowdown even when CPU and memory were fine.
+
+**Root cause:** Multiple test suites were scheduled to run simultaneously during this window, all writing large log files to the same disk.
+
+**Impact:** Test execution time increased by 40-60% during peak hours.
+
+**Recommendation:** Stagger test suite schedules to distribute disk I/O load throughout the day. The team implemented a new scheduling system that reduced peak I/O by 65%.
+
+### 3. Network Throughput Not the Issue
+
+**Finding:** Despite initial suspicion that network latency was causing problems, network throughput remained consistently low (< 20% of capacity) even during problem periods.
+
+**Insight:** This ruled out network as a bottleneck and helped focus investigation on CPU, memory, and disk.
+
+### 4. Server-Specific Performance Differences
+
+**Finding:** Two servers (Server-03 and Server-07) consistently showed 20-30% worse performance than others, even under similar workloads.
+
+**Root cause:** These servers had older hardware configurations with slower disk drives and less RAM.
+
+**Recommendation:** Either upgrade these servers or route less intensive workloads to them. The team decided to upgrade RAM on both servers, which brought performance in line with others.
+
+### 5. Predictable Performance Degradation Pattern
+
+**Finding:** System performance degraded in a predictable pattern:
+- Days 1-2: Normal performance
+- Days 3-4: Gradual slowdown (10-15% increase in response time)
+- Day 5+: Significant degradation (40%+ slower, occasional unresponsiveness)
+
+**Insight:** This pattern aligned with the memory leak issue—performance degraded as memory filled up over time.
+
+**Impact:** Understanding this pattern allowed the team to implement proactive monitoring and automated restarts before systems became critically slow.
+
+## Dashboard Explanation
+
+I created a monitoring dashboard (using Python matplotlib and later migrated to a simple web dashboard) with:
+
+### Real-Time Metrics
+- Current CPU, memory, and disk usage for each server
+- Color-coded status indicators (green/yellow/red)
+- Alerts when metrics exceed thresholds
+
+### Historical Trends
+- 7-day and 30-day trend lines for key metrics
+- Comparison to baseline performance
+- Identification of anomalous periods
+
+### Server Comparison
+- Side-by-side performance comparison across all servers
+- Identification of underperforming systems
+- Workload distribution visualization
+
+### Alert Log
+- History of performance alerts
+- Time to resolution
+- Recurring issues tracking
+
+The dashboard helped the team move from reactive (responding to problems) to proactive (preventing problems) monitoring.
+
+## Trade-offs and Limitations
+
+### What I Didn't Do
+
+**Machine learning for anomaly detection:** I used statistical thresholds (mean + 2 standard deviations) rather than ML models. For this use case, simple statistical methods were:
+- Easier to explain to the team
+- Faster to implement
+- Sufficient for the types of anomalies we were seeing
+- More transparent (team could understand why an alert triggered)
+
+**Real-time streaming analysis:** I analyzed logs in batches (every 5 minutes) rather than true real-time streaming. This was a trade-off between complexity and the team's actual needs—5-minute latency was acceptable for their use case.
+
+**Predictive modeling:** I didn't build models to predict future performance issues. With only 6 weeks of data, there wasn't enough history for reliable predictions.
+
+### Known Limitations
+
+- **Limited historical data:** 6 weeks isn't enough to identify long-term trends or seasonal patterns
+- **No application-level metrics:** I only had system-level data, not application performance metrics
+- **Manual root cause analysis:** Identifying the specific cause of issues still required manual investigation
+- **Single environment:** Analysis was specific to the test environment and might not apply to production
+
+## Potential Improvements
+
+If I were to expand this project, I would:
+
+1. **Add predictive alerts:** Build models to predict when systems are likely to hit resource limits before they actually do
+
+2. **Implement automated remediation:** Automatically restart services or scale resources when certain conditions are met
+
+3. **Integrate application logs:** Combine system metrics with application-level performance data for deeper insights
+
+4. **Build capacity planning tools:** Forecast future resource needs based on workload trends
+
+5. **Add cost analysis:** Track resource utilization vs. cost to optimize infrastructure spending
+
+6. **Implement distributed tracing:** For multi-server workloads, trace requests across systems to identify bottlenecks
+
+## What I Learned
+
+**Technical skills:**
+- Python for data processing and automation
+- SQL for time-series analysis
+- Log parsing and data standardization
+- Statistical analysis and anomaly detection
+- Performance monitoring concepts
+
+**Problem-solving:**
+- How to approach ambiguous problems with no clear starting point
+- The importance of establishing baselines before looking for anomalies
+- How to communicate technical findings to non-technical stakeholders
+- Balancing thoroughness with time constraints
+
+**Domain knowledge:**
+- System performance metrics and what they indicate
+- Common performance bottlenecks (CPU, memory, disk, network)
+- The difference between symptoms and root causes
+- How systems degrade over time
+
+**What surprised me:**
+- How much insight you can get from simple statistical analysis
+- The importance of data cleaning (spent 40% of time on this)
+- How often the obvious suspect (network) isn't the actual problem
+- The value of visualization in spotting patterns humans miss
+
+## Results and Impact
+
+The analysis led to several concrete improvements:
+
+**Immediate fixes:**
+- Modified test scripts to fix memory leaks (eliminated need for daily restarts)
+- Rescheduled test suites to distribute disk I/O load (40% reduction in peak-hour slowdowns)
+- Upgraded RAM on underperforming servers (brought all servers to similar performance levels)
+
+**Long-term improvements:**
+- Implemented proactive monitoring dashboard (reduced mean time to detection by 80%)
+- Established performance baselines and alert thresholds
+- Created runbook for common performance issues
+
+**Estimated impact:**
+- Reduced system downtime by ~60%
+- Improved test execution time by 25-30%
+- Enabled team to identify and resolve issues before they became critical
+
+This project was valuable not just for the technical skills I developed, but for experiencing the full cycle of a data analysis project: from messy raw data to actionable insights that drove real improvements.
+
+It also taught me that effective analysis isn't always about sophisticated algorithms—sometimes the biggest impact comes from asking the right questions and clearly communicating what you find.
+
+---
+
+**Want to discuss systems analysis or data projects?** Connect with me on [LinkedIn](https://www.linkedin.com/in/prathamnagekar06/) or [email me](mailto:prathamnagekar06@gmail.com).

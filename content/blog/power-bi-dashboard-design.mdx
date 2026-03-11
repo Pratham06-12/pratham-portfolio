@@ -1,0 +1,188 @@
+---
+title: "Power BI Dashboard Design: Lessons from Building My First Real Dashboards"
+date: "2024-02-08"
+excerpt: "What I learned about dashboard design while building analytics dashboards for credit risk and e-commerce projects—from cluttered messes to clean, actionable insights."
+tags: ["Power BI", "Data Analysis"]
+published: true
+---
+
+My first Power BI dashboard was a disaster. I crammed every metric I could think of onto a single page, used five different chart types, and picked colors that looked "cool" but made no sense. The result? Nobody used it.
+
+After building several dashboards for my data analysis projects—and getting feedback from people who actually had to use them—I learned some hard lessons about what makes a dashboard effective. Here's what worked (and what didn't).
+
+## Start with the Question, Not the Data
+
+My biggest mistake was starting with "what data do I have?" instead of "what question am I answering?"
+
+For my credit risk analysis dashboard, I initially showed:
+- Total loan applications
+- Average credit scores
+- Approval rates by region
+- Monthly trends
+- Risk distribution
+- And about 10 other metrics
+
+It was overwhelming. When I asked my professor what decision this dashboard would help make, I realized I hadn't thought about it.
+
+**The fix:** I started with the core question: "Which loan applications should we approve?" This led me to focus on:
+- Risk score distribution
+- Key risk factors for each application
+- Comparison to historical approval patterns
+- Clear approve/review/reject indicators
+
+Suddenly, the dashboard had a purpose. Every visual supported that one decision.
+
+## The 5-Second Rule
+
+If someone can't understand your dashboard's main insight in 5 seconds, it's too complex.
+
+I learned this when I showed my e-commerce sales dashboard to a friend. I spent 10 minutes explaining what everything meant. That's when I knew I'd failed.
+
+**What I changed:**
+- Put the most important metric at the top, large and clear
+- Used a clear visual hierarchy (big numbers for key metrics, smaller charts for supporting details)
+- Added a one-sentence summary at the top: "Sales up 23% this quarter, driven by mobile purchases"
+
+Now when someone opens the dashboard, they immediately know the story. If they want details, they can explore further.
+
+## Less is More (Seriously)
+
+I used to think more visuals = more insights. Wrong.
+
+My first dashboard had:
+- 3 pie charts
+- 4 bar charts
+- 2 line charts
+- 5 KPI cards
+- 2 tables
+- A scatter plot
+
+All on one page. It was visual chaos.
+
+**What I learned:**
+- Stick to 5-7 visuals per page maximum
+- Use white space—it's not wasted space, it's breathing room
+- If a visual doesn't answer a specific question, remove it
+
+For my systems performance dashboard, I reduced from 12 visuals to 5. The feedback? "This is so much clearer now."
+
+## Color is Communication, Not Decoration
+
+I used to pick colors because they looked nice together. Then I learned that color should mean something.
+
+**My current approach:**
+- Green = good/positive
+- Red = bad/negative/alert
+- Blue/gray = neutral information
+- Use the same color consistently across all visuals
+
+In my credit risk dashboard:
+- Green = low risk applications
+- Yellow = medium risk (needs review)
+- Red = high risk applications
+
+This consistency means users don't have to think about what colors mean—they just know.
+
+**One exception:** I avoid red-green combinations because of color blindness. I use blue-orange or add patterns/icons for additional clarity.
+
+## Choose the Right Chart Type
+
+Not every comparison needs a pie chart. Not every trend needs a line chart. Here's what I've learned works:
+
+**Bar charts:** Comparing categories (sales by region, products by revenue)
+- Easy to read
+- Works for many categories
+- Clear ranking
+
+**Line charts:** Showing trends over time (monthly sales, daily active users)
+- Shows patterns and seasonality
+- Good for spotting anomalies
+
+**KPI cards:** Single important numbers (total revenue, conversion rate)
+- Immediate impact
+- Great for top-level metrics
+
+**Tables:** When users need exact numbers or need to search/sort
+- Not exciting, but sometimes necessary
+- Keep them small and focused
+
+**What I avoid:**
+- Pie charts with more than 3-4 slices (use bar charts instead)
+- 3D charts (they distort perception)
+- Dual-axis charts (confusing and often misleading)
+
+## Make It Interactive (But Not Too Interactive)
+
+Power BI's interactivity is powerful, but I learned to use it carefully.
+
+**Good interactivity:**
+- Filters for date ranges, regions, or categories
+- Click a bar chart to filter other visuals
+- Drill-down from summary to detail
+
+**Bad interactivity:**
+- Too many slicers (I once had 8 filters on one page—nobody knew what was selected)
+- Unclear what's filtered (always show active filters clearly)
+- Interactions that break the story
+
+I now limit myself to 3-4 key filters per page and make sure the current filter state is always visible.
+
+## Design for Your Audience
+
+My credit risk dashboard was for academic review—it needed to show methodology and detailed analysis.
+
+My e-commerce dashboard was for quick business decisions—it needed to be scannable and action-oriented.
+
+Same data, different audiences, completely different designs.
+
+**Questions I now ask:**
+- Who will use this dashboard?
+- How often will they look at it?
+- What decisions will they make?
+- How much time will they spend on it?
+
+A daily operational dashboard needs to be fast and simple. A monthly strategic review can be more detailed.
+
+## Test with Real Users
+
+The best design lesson I learned: watch someone use your dashboard without explaining anything.
+
+I sat with a classmate and watched them try to use my e-commerce dashboard. They:
+- Clicked on things that weren't clickable
+- Missed the most important metric (it was too small)
+- Didn't understand what "conversion rate" meant
+- Got confused by the date filter
+
+Every one of these observations made my dashboard better. Now I always test with at least one person before considering a dashboard "done."
+
+## What I'm Still Learning
+
+I'm definitely not a Power BI expert. I'm still figuring out:
+- Advanced DAX calculations for complex metrics
+- Bookmarks and page navigation for better storytelling
+- Performance optimization for large datasets
+- Mobile-optimized layouts
+
+But these design principles have made my dashboards actually useful, which is the whole point.
+
+## My Current Dashboard Checklist
+
+Before I call a dashboard complete, I check:
+
+- [ ] Can someone understand the main insight in 5 seconds?
+- [ ] Does every visual answer a specific question?
+- [ ] Are there 5-7 visuals maximum per page?
+- [ ] Is color used consistently and meaningfully?
+- [ ] Are the most important metrics the most prominent?
+- [ ] Have I tested it with someone who hasn't seen it before?
+- [ ] Can users take action based on what they see?
+
+If I can't check all these boxes, I keep iterating.
+
+## Your Experience?
+
+What dashboard design lessons have you learned? What mistakes have you made (and fixed)? I'm always looking to improve, so I'd love to hear your thoughts.
+
+Connect with me on [LinkedIn](https://www.linkedin.com/in/prathamnagekar06/) or [email me](mailto:prathamnagekar06@gmail.com) to share your experiences.
+
+Happy dashboard building!

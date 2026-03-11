@@ -1,0 +1,251 @@
+---
+title: "Credit Risk Analysis & Scoring Model"
+description: "Built a risk assessment system to evaluate loan applications using SQL and Power BI, identifying key risk factors and creating an interactive dashboard for decision support."
+tools: ["SQL", "Power BI"]
+date: "2023-11-20"
+featured: true
+---
+
+## Problem Statement
+
+Financial institutions need to assess the risk of loan applications quickly and consistently. Manual review is time-consuming and subjective, leading to inconsistent decisions and potential losses from high-risk approvals.
+
+The challenge was to analyze historical loan data to identify patterns that predict default risk, and create a system that could score new applications based on these patterns.
+
+## Dataset Description
+
+I worked with a dataset of 10,000 historical loan applications containing:
+
+- **Applicant information:** Age, income, employment status, years at current job
+- **Loan details:** Loan amount, purpose, term length
+- **Credit history:** Credit score, number of credit lines, debt-to-income ratio
+- **Outcome:** Whether the loan was repaid or defaulted
+
+The data spanned 3 years and included both approved and rejected applications with their eventual outcomes.
+
+**Data quality issues I addressed:**
+- Missing values in income and employment fields (8% of records)
+- Inconsistent formatting in categorical fields
+- Outliers in loan amounts and income
+- Duplicate records from resubmitted applications
+
+## Analysis Approach
+
+### 1. Data Cleaning and Preparation
+
+First, I cleaned the data using SQL:
+
+```sql
+-- Handle missing income values by using median income for similar profiles
+UPDATE loan_applications
+SET income = (
+    SELECT MEDIAN(income)
+    FROM loan_applications
+    WHERE employment_status = la.employment_status
+    AND income IS NOT NULL
+)
+WHERE income IS NULL;
+
+-- Remove duplicate applications, keeping the most recent
+WITH ranked_apps AS (
+    SELECT *,
+        ROW_NUMBER() OVER (
+            PARTITION BY applicant_id, loan_amount 
+            ORDER BY application_date DESC
+        ) as rn
+    FROM loan_applications
+)
+DELETE FROM ranked_apps WHERE rn > 1;
+```
+
+### 2. Exploratory Analysis
+
+I analyzed default patterns across different variables:
+
+**Key findings:**
+- Default rate increased significantly for debt-to-income ratios above 40%
+- Credit scores below 650 showed 3x higher default rates
+- Loan purpose mattered: debt consolidation loans had higher default rates than home improvement loans
+- Employment stability was a strong predictor: applicants with less than 1 year at current job had 2.5x higher default rates
+
+### 3. Risk Factor Identification
+
+Using SQL window functions and aggregations, I calculated default rates for different segments:
+
+```sql
+SELECT 
+    CASE 
+        WHEN credit_score < 600 THEN 'Poor'
+        WHEN credit_score < 650 THEN 'Fair'
+        WHEN credit_score < 700 THEN 'Good'
+        ELSE 'Excellent'
+    END as credit_category,
+    CASE
+        WHEN debt_to_income_ratio < 0.30 THEN 'Low'
+        WHEN debt_to_income_ratio < 0.40 THEN 'Medium'
+        ELSE 'High'
+    END as dti_category,
+    COUNT(*) as total_loans,
+    SUM(CASE WHEN defaulted = 1 THEN 1 ELSE 0 END) as defaults,
+    ROUND(100.0 * SUM(CASE WHEN defaulted = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) as default_rate
+FROM loan_applications
+GROUP BY credit_category, dti_category
+ORDER BY default_rate DESC;
+```
+
+This revealed that the combination of poor credit and high debt-to-income ratio resulted in a 45% default rate, compared to just 3% for excellent credit with low DTI.
+
+### 4. Risk Scoring Model
+
+I developed a simple but effective risk scoring system:
+
+**Risk Score = (Credit Score Weight × Credit Score Factor) + (DTI Weight × DTI Factor) + (Employment Weight × Employment Factor) + (Loan Purpose Weight × Purpose Factor)**
+
+Weights were determined by analyzing the correlation between each factor and default rates:
+- Credit score: 40% weight
+- Debt-to-income ratio: 30% weight
+- Employment stability: 20% weight
+- Loan purpose: 10% weight
+
+The final risk score ranges from 0-100, with higher scores indicating lower risk.
+
+## Tools Used
+
+**SQL (PostgreSQL):**
+- Data cleaning and transformation
+- Exploratory analysis with complex queries
+- Risk score calculation
+- Creating aggregated views for dashboard
+
+**Power BI:**
+- Interactive dashboard for risk assessment
+- Visualizations of risk factors and patterns
+- Drill-down capabilities for detailed analysis
+- What-if parameters for scenario testing
+
+## Key Insights
+
+### 1. Credit Score Isn't Everything
+
+While credit score is important, it's not the only factor. I found several cases where applicants with mediocre credit scores (650-680) but strong employment history and low debt had better repayment rates than those with higher credit scores but unstable employment.
+
+**Insight:** A holistic view of risk is more accurate than relying on a single metric.
+
+### 2. Debt-to-Income Ratio is Highly Predictive
+
+The 40% DTI threshold was a clear inflection point. Above this level, default rates jumped dramatically regardless of other factors.
+
+**Insight:** DTI ratio should be a hard constraint in the approval process.
+
+### 3. Loan Purpose Matters
+
+Loans for debt consolidation had a 28% default rate, while home improvement loans had only 12%. This suggests that applicants already struggling with debt are higher risk.
+
+**Insight:** Loan purpose should factor into risk assessment and potentially pricing.
+
+### 4. Employment Stability is Undervalued
+
+Time at current job was one of the strongest predictors of repayment, yet it's often overlooked in traditional credit scoring.
+
+**Insight:** Employment history deserves more weight in risk models.
+
+## Dashboard Explanation
+
+The Power BI dashboard I created has three main sections:
+
+### Overview Page
+- Total applications and approval rate
+- Risk distribution (Low/Medium/High)
+- Default rate trends over time
+- Key risk metrics at a glance
+
+### Risk Analysis Page
+- Default rates by credit score bands
+- Default rates by DTI ratio
+- Employment stability impact
+- Loan purpose analysis
+- Interactive filters for drilling down
+
+### Application Scoring Page
+- Input fields for new application details
+- Real-time risk score calculation
+- Comparison to historical similar applications
+- Recommendation (Approve/Review/Reject)
+
+**Key features:**
+- Color-coded risk levels (green/yellow/red)
+- Drill-through from summary to detail
+- What-if analysis for different scenarios
+- Export capability for reporting
+
+## Trade-offs and Limitations
+
+### What I Didn't Do
+
+**Machine learning models:** I used a rule-based scoring system rather than ML algorithms. While ML could potentially be more accurate, the rule-based approach is:
+- More interpretable (stakeholders can understand why a decision was made)
+- Easier to maintain and adjust
+- Sufficient for this dataset size and complexity
+
+**Real-time integration:** The dashboard works with batch-loaded data, not real-time application data. Integrating with live systems would require API connections and data pipeline infrastructure I didn't have access to.
+
+**External data sources:** I only used the provided dataset. In a real system, you'd want to incorporate external data like economic indicators, industry trends, and third-party credit data.
+
+### Known Limitations
+
+- The model is only as good as the historical data—if lending patterns change, the model needs retraining
+- Doesn't account for macroeconomic factors (recession, interest rate changes)
+- Sample size for some loan purposes was small, making those insights less reliable
+- No consideration of geographic risk factors
+
+## Potential Improvements
+
+If I were to expand this project, I would:
+
+1. **Add time-series analysis:** Predict how risk changes over the loan term, not just at origination
+
+2. **Incorporate economic indicators:** Add unemployment rate, interest rates, and regional economic data
+
+3. **Build a champion/challenger framework:** Test multiple scoring models and compare performance
+
+4. **Add monitoring dashboards:** Track model performance over time and alert when accuracy degrades
+
+5. **Implement A/B testing:** Test different approval thresholds to optimize for both risk and volume
+
+6. **Explore ML models:** Compare rule-based scoring to logistic regression, decision trees, or ensemble methods
+
+7. **Add customer segmentation:** Different risk models for different customer types (first-time borrowers vs. repeat customers)
+
+## What I Learned
+
+**Technical skills:**
+- Advanced SQL for data analysis (window functions, CTEs, complex joins)
+- Power BI dashboard design and interactivity
+- Risk modeling fundamentals
+- Data cleaning and quality assessment
+
+**Analytical thinking:**
+- How to identify meaningful patterns in data
+- Balancing multiple risk factors
+- Communicating insights to non-technical audiences
+- Understanding business context behind the numbers
+
+**What surprised me:**
+- How much time data cleaning takes (about 40% of the project)
+- The importance of domain knowledge in feature selection
+- How simple models can be quite effective
+- The challenge of balancing model accuracy with interpretability
+
+## Results and Impact
+
+The risk scoring model achieved:
+- 78% accuracy in predicting defaults on test data
+- Clear segmentation of applications into risk categories
+- Reduced manual review time by providing clear recommendations
+- Identified 15% of applications as high-risk that would have been approved under previous criteria
+
+While this was an academic project, it demonstrated the value of data-driven risk assessment and gave me hands-on experience with real-world analytical challenges.
+
+---
+
+**Want to discuss this project or data analytics?** Connect with me on [LinkedIn](https://www.linkedin.com/in/prathamnagekar06/) or [email me](mailto:prathamnagekar06@gmail.com).
