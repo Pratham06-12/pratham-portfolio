@@ -48,7 +48,7 @@ export function RecentContent({ type, items }: RecentContentProps) {
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {items.slice(0, 3).map((item) => {
+        {items.map((item) => {
           // Map item data to ContentCard props based on type
           if (type === 'blog') {
             const post = item as BlogPost
@@ -76,6 +76,8 @@ export function RecentContent({ type, items }: RecentContentProps) {
                 description={project.description}
                 date={project.date}
                 tags={project.tools}
+                image={project.image}
+                githubUrl={project.githubUrl}
                 href={`/projects/${project.slug}`}
               />
             )

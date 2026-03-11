@@ -102,6 +102,8 @@ export function getAllProjects(): Project[] {
         tools: (project.frontmatter.tools as Tool[]) || [],
         date: project.frontmatter.date as string,
         featured: project.frontmatter.featured === true,
+        image: project.frontmatter.image as string,
+        githubUrl: project.frontmatter.githubUrl as string,
         content: project.content,
         sections: (project.frontmatter.sections as any[]) || [],
       }))
@@ -126,6 +128,8 @@ export function getProjectBySlug(slug: string): Project {
       tools: (project.frontmatter.tools as Tool[]) || [],
       date: project.frontmatter.date as string,
       featured: project.frontmatter.featured === true,
+      image: project.frontmatter.image as string,
+      githubUrl: project.frontmatter.githubUrl as string,
       content: project.content,
       sections: (project.frontmatter.sections as any[]) || [],
     }

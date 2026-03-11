@@ -31,7 +31,7 @@ export const metadata: Metadata = {
 export default function Home() {
   // Fetch content for the home page
   const recentPosts = getRecentBlogPosts(3)
-  const featuredProjects = getFeaturedProjects().slice(0, 3)
+  const featuredProjects = getFeaturedProjects().slice(0, 4)
   const recentChangelog = getRecentChangelogEntries(3)
 
   return (

@@ -13,6 +13,7 @@ export interface ContentCardProps {
   tags?: string[]
   href?: string
   image?: string
+  githubUrl?: string
   readingTime?: number
   type: 'blog' | 'project' | 'changelog'
 }
@@ -24,6 +25,7 @@ export function ContentCard({
   tags,
   href,
   image,
+  githubUrl,
   readingTime,
   type,
 }: ContentCardProps) {
@@ -102,6 +104,22 @@ export function ContentCard({
                 {tag}
               </Tag>
             ))}
+          </div>
+        )}
+
+        {/* GitHub Link */}
+        {githubUrl && (
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+            <span
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                window.open(githubUrl, '_blank', 'noopener,noreferrer')
+              }}
+              className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors duration-200 cursor-pointer"
+            >
+              View Repository →
+            </span>
           </div>
         )}
       </div>
